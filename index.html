@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Brief - AI Edition</title>
+    <style>
+        /* --- FUENTES --- */
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Libre+Franklin:wght@300;400;600;800&display=swap');
+
+        :root {
+            --bg-app: #051414; 
+            --paper: #FAF7F0; 
+            --ink: #1a1a1a;
+            --brand: #0F3D3E; 
+            --accent: #B91C1C; 
+            --border-color: #aaa;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0; padding: 0; background-color: var(--bg-app);
+            font-family: 'Libre Franklin', sans-serif;
+            height: 100vh; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        img {
+            filter: grayscale(100%) contrast(1.2) sepia(15%);
+            mix-blend-mode: multiply;
+            transition: filter 0.5s;
+        }
+
+        .nav-arrow {
+            position: absolute; top: 0; bottom: 0; width: 15%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 100; opacity: 0; transition: opacity 0.3s;
+            color: white; font-size: 2rem;
+        }
+        .nav-arrow:hover { opacity: 0.5; background: linear-gradient(to right, rgba(15, 61, 62, 0.5), transparent); }
+        .nav-next:hover { background: linear-gradient(to left, rgba(15, 61, 62, 0.5), transparent); }
+        .nav-prev { left: 0; }
+        .nav-next { right: 0; }
+
+        /* --- LIBRO 3D --- */
+        .book-container {
+            width: 100vw; height: 100dvh;
+            position: relative; perspective: 1500px;
+            touch-action: pan-y;
+        }
+        @media (min-width: 768px) {
+            .book-container { width: 480px; height: 90vh; }
+        }
+
+        .page {
+            width: 100%; height: 100%; position: absolute; top: 0; left: 0;
+            background: var(--paper); transform-origin: left center;
+            transition: transform 0.6s cubic-bezier(0.645, 0.045, 0.355, 1);
+            backface-visibility: hidden; display: flex; flex-direction: column;
+            overflow: hidden; box-shadow: inset 3px 0 15px rgba(0,0,0,0.1);
+            border-right: 1px solid #bbb;
+        }
+        
+        .page.flipped { transform: rotateY(-125deg); pointer-events: none; }
+        .page::after { content:''; position:absolute; inset:0; background:transparent; transition:background 0.6s; pointer-events:none; z-index: 20; }
+        .page.flipped::after { background:rgba(0,0,0,0.3); }
+
+        /* Z-Index */
+        .page:nth-child(1) { z-index: 9; } .page:nth-child(2) { z-index: 8; }
+        .page:nth-child(3) { z-index: 7; } .page:nth-child(4) { z-index: 6; }
+        .page:nth-child(5) { z-index: 5; } .page:nth-child(6) { z-index: 4; }
+        .page:nth-child(7) { z-index: 3; } .page:nth-child(8) { z-index: 2; }
+        .page:nth-child(9) { z-index: 1; }
+
+        .page-content { padding: 15px; height: 100%; display: grid; gap: 12px; padding-top: 60px; background: var(--paper); }
+        .economy-page { padding-top: 90px; }
+
+        .section-header {
+            position: absolute; top: 0; left: 0; width: 100%; height: 50px;
+            display: flex; align-items: flex-end; justify-content: space-between;
+            padding: 0 20px 10px 20px; border-bottom: 2px solid var(--brand);
+            background: var(--paper); z-index: 10;
+        }
+        .section-title { font-family: 'Playfair Display'; font-weight: 900; text-transform: uppercase; font-size: 1.1rem; color: var(--brand); }
+
+        /* TICKER */
+        .ticker-wrap { position: absolute; top: 52px; left: 0; width: 100%; height: 30px; background: var(--brand); color: #fff; overflow: hidden; z-index: 9; display: flex; align-items: center; }
+        .ticker { display: inline-block; padding-left: 100%; animation: ticker 25s linear infinite; font-size: 0.8rem; }
+        @keyframes ticker { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
+
+        /* CARDS */
+        .card { border: 1px solid var(--border-color); position: relative; cursor: pointer; display: flex; flex-direction: column; overflow: hidden; }
+        .card img { width: 100%; height: 100%; object-fit: cover; }
+        .card-overlay { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(15, 61, 62, 0.9); padding: 10px; color: white; }
+        .kicker { font-size: 0.6rem; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; }
+        .headline { font-family: 'Playfair Display'; font-weight: 700; line-height: 1.1; margin: 0; font-size: 1rem; }
+
+        .layout-a { grid-template: "main main" 1.5fr "sub1 sub2" 1fr "ad ad" 0.4fr / 1fr 1fr; }
+        .layout-b { grid-template: "main sub1" 1fr "main sub2" 1fr "ad ad" 0.4fr / 1.3fr 1fr; }
+        .area-main { grid-area: main; } .area-sub1 { grid-area: sub1; } .area-sub2 { grid-area: sub2; }
+        .area-ad { grid-area: ad; background: rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: center; font-size: 0.6rem; border: 1px dashed var(--brand); }
+
+        /* PORTADA */
+        .cover-layout { height: 100%; padding: 20px; text-align: center; display: flex; flex-direction: column; }
+        .masthead { font-family: 'Playfair Display'; font-size: 3.2rem; font-weight: 900; border-bottom: 4px double var(--brand); margin-top: 35px; color: var(--brand); }
+        .cover-date { font-size: 0.7rem; border-bottom: 1px solid var(--brand); padding: 8px 0; margin-bottom: 15px; display: flex; justify-content: space-between; }
+        .cover-lead { text-align: left; cursor: pointer; flex: 1; display: flex; flex-direction: column; }
+        .cover-h1 { font-family: 'Playfair Display'; font-size: 2.4rem; line-height: 0.95; margin: 10px 0; font-weight: 900; }
+        .cover-img { width: 100%; flex: 1; object-fit: cover; border: 1px solid var(--brand); }
+
+        /* LECTOR */
+        #reader { position: fixed; inset: 0; background: var(--paper); z-index: 3000; transform: translateY(100%); transition: transform 0.4s ease; display: flex; flex-direction: column; }
+        #reader.open { transform: translateY(0); }
+        .reader-scroll { flex: 1; overflow-y: auto; padding-bottom: 100px; }
+        .reader-hero { width: 100%; height: 40vh; object-fit: cover; }
+        .reader-content { padding: 30px 20px; max-width: 700px; margin: 0 auto; }
+        .reader-h1 { font-family: 'Playfair Display'; font-size: 2.2rem; font-weight: 900; margin-bottom: 20px; }
+        .reader-text { font-family: 'Georgia', serif; font-size: 1.2rem; line-height: 1.6; }
+        .close-reader { position: fixed; top: 15px; right: 15px; width: 40px; height: 40px; border-radius: 50%; background: var(--brand); color: white; border: none; z-index: 3100; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="nav-arrow nav-prev" onclick="prevPage()">❮</div>
+    <div class="nav-arrow nav-next" onclick="nextPage()">❯</div>
+
+    <div id="reader">
+        <button class="close-reader" onclick="closeReader()">✕</button>
+        <div class="reader-scroll">
+            <img id="reader-img" class="reader-hero" src="">
+            <div class="reader-content">
+                <h1 id="reader-title" class="reader-h1">Cargando...</h1>
+                <div id="reader-text" class="reader-text"></div>
+                <div id="reader-sources" style="margin-top:20px; font-size:0.8rem; color:var(--brand); font-weight:bold;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="book-container" id="book">
+        <div class="page">
+            <div class="cover-layout">
+                <div class="masthead">THE BRIEF</div>
+                <div class="cover-date"><span id="live-date">GLOBAL EDITION</span><span>AI POWERED</span></div>
+                <div class="cover-lead" id="portada" onclick="openArticle('portada')">
+                    <div style="font-weight:900; color:var(--accent); font-size:0.8rem;">DESTACADO</div>
+                    <h1 class="cover-h1" id="portada-tit">Cargando noticias...</h1>
+                    <img id="portada-img" src="" class="cover-img">
+                </div>
+            </div>
+        </div>
+
+        <div class="page">
+            <div class="section-header"><span class="section-title">Política</span><span class="page-num">02</span></div>
+            <div class="page-content layout-a">
+                <div class="card area-main" id="pol1" onclick="openArticle('pol1')">
+                    <img src=""><div class="card-overlay"><div class="kicker">NACIONAL</div><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub1" id="pol2" onclick="openArticle('pol2')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub2" id="pol3" onclick="openArticle('pol3')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="area-ad">THE BRIEF • POLITICS</div>
+            </div>
+        </div>
+
+        <div class="page">
+            <div class="section-header"><span class="section-title">Política</span><span class="page-num">03</span></div>
+            <div class="page-content layout-b">
+                <div class="card area-main" id="pol4" onclick="openArticle('pol4')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub1" id="pol5" onclick="openArticle('pol5')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub2" id="pol6" onclick="openArticle('pol6')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="area-ad">ADVERTISING</div>
+            </div>
+        </div>
+
+        <div class="page">
+            <div class="ticker-wrap"><div class="ticker">MARKET DATA LIVE • IBEX 35 • NASDAQ • EUR/USD • BRENT OIL</div></div>
+            <div class="section-header"><span class="section-title">Economía</span><span class="page-num">04</span></div>
+            <div class="page-content economy-page layout-a">
+                <div class="card area-main" id="eco1" onclick="openArticle('eco1')">
+                    <img src=""><div class="card-overlay"><div class="kicker">MERCADOS</div><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub1" id="eco2" onclick="openArticle('eco2')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub2" id="eco3" onclick="openArticle('eco3')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="area-ad">FINANCIAL TIMES DATA</div>
+            </div>
+        </div>
+
+        <div class="page">
+            <div class="section-header"><span class="section-title">Economía</span><span class="page-num">05</span></div>
+            <div class="page-content layout-b">
+                <div class="card area-main" id="eco4" onclick="openArticle('eco4')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub1" id="eco5" onclick="openArticle('eco5')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub2" id="eco6" onclick="openArticle('eco6')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="area-ad">BUSINESS INSIDER</div>
+            </div>
+        </div>
+
+        <div class="page">
+            <div class="section-header"><span class="section-title">Cultura</span><span class="page-num">06</span></div>
+            <div class="page-content layout-a">
+                <div class="card area-main" id="cul1" onclick="openArticle('cul1')">
+                    <img src=""><div class="card-overlay"><div class="kicker">ARTE</div><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub1" id="cul2" onclick="openArticle('cul2')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub2" id="cul3" onclick="openArticle('cul3')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="area-ad">ARTS & LEISURE</div>
+            </div>
+        </div>
+
+        <div class="page">
+            <div class="section-header"><span class="section-title">Cultura</span><span class="page-num">07</span></div>
+            <div class="page-content layout-b">
+                <div class="card area-main" id="cul4" onclick="openArticle('cul4')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub1" id="cul5" onclick="openArticle('cul5')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub2" id="cul6" onclick="openArticle('cul6')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="area-ad">EXHIBITIONS</div>
+            </div>
+        </div>
+
+        <div class="page">
+            <div class="section-header"><span class="section-title">Deportes</span><span class="page-num">08</span></div>
+            <div class="page-content layout-a">
+                <div class="card area-main" id="dep1" onclick="openArticle('dep1')">
+                    <img src=""><div class="card-overlay"><div class="kicker">COMPETICIÓN</div><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub1" id="dep2" onclick="openArticle('dep2')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub2" id="dep3" onclick="openArticle('dep3')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="area-ad">SPORTS DAILY</div>
+            </div>
+        </div>
+
+        <div class="page">
+            <div class="section-header"><span class="section-title">Deportes</span><span class="page-num">09</span></div>
+            <div class="page-content layout-b">
+                <div class="card area-main" id="dep4" onclick="openArticle('dep4')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub1" id="dep5" onclick="openArticle('dep5')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="card area-sub2" id="dep6" onclick="openArticle('dep6')">
+                    <img src=""><div class="card-overlay"><div class="headline">...</div></div>
+                </div>
+                <div class="area-ad">GLOBAL SPORTS</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURACIÓN DE DATOS ---
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT3QdG2tlOa9GN6iDaKLC2MvtCqTTbnvbBAoV5I2mI0CE_z0g2Te3qt8HtDVkwY4Xj6SYveYfK0hcNJ/pub?gid=324027677&single=true&output=csv';
+        
+        let newsData = {};
+
+        async function fetchNews() {
+            try {
+                const response = await fetch(SHEET_URL);
+                const csvText = await response.text();
+                const rows = csvText.split('\n').slice(1); // Saltar cabecera
+                
+                let counts = { "Política": 1, "Economía": 1, "Cultura": 1, "Deportes": 1 };
+
+                rows.forEach(row => {
+                    const columns = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); // Split por coma respetando comillas
+                    if (columns.length < 6) return;
+
+                    const title = columns[1]?.replace(/"/g, '');
+                    const kicker = columns[2]?.replace(/"/g, '');
+                    const img = columns[3]?.replace(/"/g, '');
+                    const fullText = columns[4]?.replace(/"/g, '');
+                    const category = columns[5]?.replace(/"/g, '').trim();
+                    const sources = columns[6]?.replace(/"/g, '');
+
+                    // Mapeo dinámico por ID (pol1, pol2, eco1...)
+                    let prefix = "";
+                    if (category === "Política") prefix = "pol";
+                    if (category === "Economía") prefix = "eco";
+                    if (category === "Cultura") prefix = "cul";
+                    if (category === "Deportes") prefix = "dep";
+
+                    if (prefix && counts[category] <= 6) {
+                        const id = prefix + counts[category];
+                        newsData[id] = { title, kicker, img, fullText, sources };
+                        updateUI(id, title, kicker, img);
+                        
+                        // Si es la primera de política, la ponemos también en portada
+                        if (id === "pol1") {
+                            newsData['portada'] = newsData[id];
+                            document.getElementById('portada-tit').innerText = title;
+                            document.getElementById('portada-img').src = img;
+                        }
+                        counts[category]++;
+                    }
+                });
+            } catch (err) { console.error("Error cargando CSV:", err); }
+        }
+
+        function updateUI(id, title, kicker, img) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (el.querySelector('.headline')) el.querySelector('.headline').innerText = title;
+            if (el.querySelector('.kicker')) el.querySelector('.kicker').innerText = kicker;
+            if (el.querySelector('img')) el.querySelector('img').src = img;
+        }
+
+        function openArticle(id) {
+            const data = newsData[id];
+            if (!data) return;
+            document.getElementById('reader-title').innerText = data.title;
+            document.getElementById('reader-img').src = data.img;
+            document.getElementById('reader-text').innerHTML = data.fullText.split('\n').map(p => `<p>${p}</p>`).join('');
+            document.getElementById('reader-sources').innerText = "FUENTES: " + data.sources;
+            document.getElementById('reader').classList.add('open');
+        }
+
+        function closeReader() { document.getElementById('reader').classList.remove('open'); }
+
+        // --- NAVEGACIÓN LIBRO ---
+        const pages = document.querySelectorAll('.page');
+        let currentPage = 0;
+        let startX = 0;
+
+        function updateNav() {
+            document.querySelector('.nav-prev').style.display = currentPage === 0 ? 'none' : 'flex';
+            document.querySelector('.nav-next').style.display = currentPage === pages.length - 1 ? 'none' : 'flex';
+        }
+
+        function nextPage() { if(currentPage < pages.length-1) { pages[currentPage].classList.add('flipped'); currentPage++; updateNav(); } }
+        function prevPage() { if(currentPage > 0) { currentPage--; pages[currentPage].classList.remove('flipped'); updateNav(); } }
+
+        const book = document.getElementById('book');
+        book.addEventListener('touchstart', e => startX = e.touches[0].clientX);
+        book.addEventListener('touchend', e => {
+            if(Math.abs(startX - e.changedTouches[0].clientX) > 50) {
+                if(startX > e.changedTouches[0].clientX) nextPage(); else prevPage();
+            }
+        });
+
+        // Inicio
+        fetchNews();
+        updateNav();
+        document.getElementById('live-date').innerText = new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+    </script>
+</body>
+</html>
